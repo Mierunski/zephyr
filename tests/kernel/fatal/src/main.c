@@ -144,11 +144,6 @@ void stack_thread2(void)
 
 void test_fatal(void)
 {
-#if defined(CONFIG_ARCH_POSIX)
-	ARG_UNUSED(expected_reason);
-	ARG_UNUSED(overflow_stack);
-#endif
-
 	rv = TC_PASS;
 
 	/*

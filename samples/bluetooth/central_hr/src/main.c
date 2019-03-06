@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <errno.h>
 #include <zephyr.h>
+#include <device.h>
+#include <uart.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
@@ -32,6 +34,8 @@ static struct bt_uuid_128 led_uuid = BT_UUID_INIT_128(
 static struct bt_gatt_discover_params discover_params;
 static struct bt_gatt_subscribe_params subscribe_params;
 
+K_SEM_DEFINE(m_write_sem, 0, 1);
+
 static u8_t notify_func(struct bt_conn *conn,
 			   struct bt_gatt_subscribe_params *params,
 			   const void *data, u16_t length)
@@ -46,6 +50,21 @@ static u8_t notify_func(struct bt_conn *conn,
 
 	return BT_GATT_ITER_CONTINUE;
 }
+u8_t leds[4] = {1, 2, 3, 4};
+volatile bool m_connected = false;
+void write_cb(struct bt_conn *conn, u8_t err,
+	     struct bt_gatt_write_params *params)
+{
+	m_connected = true;
+	k_sem_give(&m_write_sem);
+}
+
+struct bt_gatt_write_params write_params = {
+	.func = write_cb,
+	.offset = 0,
+	.data = leds,
+	.length = 4
+};
 
 static u8_t discover_func(struct bt_conn *conn,
 			     const struct bt_gatt_attr *attr,
@@ -59,11 +78,16 @@ static u8_t discover_func(struct bt_conn *conn,
 		return BT_GATT_ITER_STOP;
 	}
 
-	LOG_INF("[ATTRIBUTE] handle %u", attr->handle);
+	LOG_INF("[ATTRIBUTE] handle 0x%02x", attr->handle);
+	struct bt_uuid_128 uuid1;
 
-	if (!bt_uuid_cmp(discover_params.uuid, BT_UUID_HRS)) {
+	memcpy(&uuid1, discover_params.uuid, sizeof(uuid1));
+	LOG_HEXDUMP_INF(uuid1.val, 16, "Uuid");
+
+	if (!bt_uuid_cmp(discover_params.uuid, &uuid.uuid)) {
+		LOG_INF("Passed");
 		memcpy(&uuid, BT_UUID_HRS_MEASUREMENT, sizeof(uuid));
-		discover_params.uuid = &uuid.uuid;
+		discover_params.uuid = &led_uuid.uuid;
 		discover_params.start_handle = attr->handle + 1;
 		discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
 
@@ -72,10 +96,12 @@ static u8_t discover_func(struct bt_conn *conn,
 			LOG_INF("Discover failed (err %d)", err);
 		}
 	} else if (!bt_uuid_cmp(discover_params.uuid,
-				BT_UUID_HRS_MEASUREMENT)) {
+				&led_uuid.uuid)
+		   && discover_params.type == BT_GATT_DISCOVER_CHARACTERISTIC) {
 		memcpy(&uuid, BT_UUID_GATT_CCC, sizeof(uuid));
-		discover_params.uuid = &uuid.uuid;
-		discover_params.start_handle = attr->handle + 2;
+		LOG_INF("FOUND LED");
+		discover_params.uuid = &led_uuid.uuid;
+		discover_params.start_handle = attr->handle + 1;
 		discover_params.type = BT_GATT_DISCOVER_DESCRIPTOR;
 		subscribe_params.value_handle = attr->handle + 1;
 
@@ -83,17 +109,12 @@ static u8_t discover_func(struct bt_conn *conn,
 		if (err) {
 			LOG_INF("Discover failed (err %d)", err);
 		}
-	} else {
-		subscribe_params.notify = notify_func;
-		subscribe_params.value = BT_GATT_CCC_NOTIFY;
-		subscribe_params.ccc_handle = attr->handle;
+	}  else if (!bt_uuid_cmp(discover_params.uuid,
+			&led_uuid.uuid)) {
+		LOG_INF("FOUND attrubute");
+		write_params.handle = attr->handle;
+		bt_gatt_write(conn, &write_params);
 
-		err = bt_gatt_subscribe(conn, &subscribe_params);
-		if (err && err != -EALREADY) {
-			LOG_INF("Subscribe failed (err %d)", err);
-		} else {
-			LOG_INF("[SUBSCRIBED]");
-		}
 
 		return BT_GATT_ITER_STOP;
 	}
@@ -236,6 +257,7 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 
 	bt_conn_unref(default_conn);
 	default_conn = NULL;
+	m_connected = false;
 
 	/* This demo doesn't require active scan */
 	err = bt_le_scan_start(BT_LE_SCAN_PASSIVE, device_found);
@@ -253,6 +275,7 @@ void main(void)
 {
 	int err;
 	err = bt_enable(NULL);
+	struct device *uart = device_get_binding(DT_UART_0_NAME);
 
 	if (err) {
 		LOG_INF("Bluetooth init failed (err %d)", err);
@@ -271,4 +294,28 @@ void main(void)
 	}
 
 	LOG_INF("Scanning successfully started");
+	u32_t milis = k_uptime_get_32();
+	u32_t msgs = 0;
+
+	while(1) {
+
+		if (k_uptime_get_32() - milis > 1000) {
+			milis = k_uptime_get_32();
+			LOG_INF("Sent %d msgs.", msgs);
+			msgs = 0;
+		}
+		char c;
+		if (uart_poll_in(uart, &c) == 0) {
+			LOG_INF("%c", c);
+
+			leds[0] = c;
+
+			if (m_connected) {
+				k_sem_take(&m_write_sem, K_FOREVER);
+				bt_gatt_write(default_conn, &write_params);
+				msgs++;
+			}
+		}
+		k_sleep(10);
+	}
 }

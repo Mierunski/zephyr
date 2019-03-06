@@ -13,6 +13,8 @@
 #include <misc/printk.h>
 #include <misc/byteorder.h>
 #include <zephyr.h>
+#include <device.h>
+#include <gpio.h>
 
 #include <settings/settings.h>
 
@@ -93,7 +95,10 @@ static void indicate_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 
 /** LED */
 
-u8_t led_val = 0;
+struct device *gpio_dev;
+u8_t led_val[4];
+u32_t msgs;
+u32_t bytes;
 static ssize_t led_write(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 const void *buf, u16_t len, u16_t offset,
 			 u8_t flags)
@@ -102,9 +107,29 @@ static ssize_t led_write(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	if (offset + len > sizeof(led_val)) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
-	led_val = *(u8_t *)buf;
+	memcpy(led_val, buf, len);
+	msgs++;
+	bytes += len;
+	switch (led_val[0]) {
+		case '0':
+			gpio_pin_write(gpio_dev, LED0_GPIO_PIN, 0);
+			break;
+		case '1':
+			gpio_pin_write(gpio_dev, LED1_GPIO_PIN, 0);
+			break;
+		case '2':
+			gpio_pin_write(gpio_dev, LED2_GPIO_PIN, 0);
+			break;
+		case '3':
+			gpio_pin_write(gpio_dev, LED3_GPIO_PIN, 0);
+			break;
+		default:
+			gpio_pin_write(gpio_dev, LED0_GPIO_PIN, 1);
+			gpio_pin_write(gpio_dev, LED1_GPIO_PIN, 1);
+			gpio_pin_write(gpio_dev, LED2_GPIO_PIN, 1);
+			gpio_pin_write(gpio_dev, LED3_GPIO_PIN, 1);
+	}
 
-	LOG_INF("Len: %d, off: %d, led: %d", len, offset, led_val);
 	return len;
 }
 
@@ -333,6 +358,13 @@ void main(void)
 {
 	int err;
 
+	gpio_dev = device_get_binding(LED0_GPIO_CONTROLLER);
+	/* Set LED pin as output */
+	gpio_pin_configure(gpio_dev, LED0_GPIO_PIN, GPIO_DIR_OUT);
+	gpio_pin_configure(gpio_dev, LED1_GPIO_PIN, GPIO_DIR_OUT);
+	gpio_pin_configure(gpio_dev, LED2_GPIO_PIN, GPIO_DIR_OUT);
+	gpio_pin_configure(gpio_dev, LED3_GPIO_PIN, GPIO_DIR_OUT);
+
 	err = bt_enable(bt_ready);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
@@ -346,24 +378,9 @@ void main(void)
 	 * of starting delayed work so we do it here
 	 */
 	while (1) {
-		k_sleep(100);
-
-		/* Vendor indication simulation */
-		if (simulate_vnd) {
-			static u8_t val = 0;
-			if (indicating) {
-				continue;
-			}
-
-			ind_params.attr = &vnd_attrs[2];
-			ind_params.func = indicate_cb;
-			ind_params.data = &val;
-			ind_params.len = sizeof(indicating);
-
-			if (bt_gatt_indicate(NULL, &ind_params) == 0) {
-				indicating = 1U;
-			}
-			val++;
-		}
+		k_sleep(1000);
+		LOG_INF("Received %d msgs, bytes: %d", msgs, bytes);
+		msgs = 0;
+		bytes = 0;
 	}
 }

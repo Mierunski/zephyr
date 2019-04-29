@@ -224,7 +224,7 @@ int ssd1673_resume(const struct device *dev)
 				 &tmp, sizeof(tmp));
 }
 
-static int ssd1673_suspend(const struct device *dev)
+int ssd1673_suspend(const struct device *dev)
 {
 	struct ssd1673_data *driver = dev->driver_data;
 	u8_t tmp = SSD1673_SLEEP_MODE_DSM;
@@ -238,6 +238,7 @@ static int ssd1673_update_display(const struct device *dev)
 	struct ssd1673_data *driver = dev->driver_data;
 	u8_t tmp;
 	int err;
+	LOG_INF("SCrreen update");
 
 	tmp = SSD1673_CTRL1_INITIAL_UPDATE_LH;
 	err = ssd1673_write_cmd(driver, SSD1673_CMD_UPDATE_CTRL1,
@@ -577,7 +578,8 @@ static int ssd1673_controller_init(struct device *dev)
 		return err;
 	}
 
-	return ssd1673_clear_and_write_buffer(dev);
+//	return ssd1673_clear_and_write_buffer(dev);
+	return 0;
 }
 static int ssd1673_init(struct device *dev);
 void __ssd1673_reinit(void)
@@ -590,7 +592,6 @@ static int ssd1673_init(struct device *dev)
 
 	memcpy(&dev_cpy, dev, sizeof(dev_cpy));
 
-	LOG_DBG("");
 
 	driver->spi_dev = device_get_binding(DT_SOLOMON_SSD1673FB_0_BUS_NAME);
 	if (driver->spi_dev == NULL) {

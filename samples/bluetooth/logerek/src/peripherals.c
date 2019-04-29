@@ -32,8 +32,8 @@
 
 #include "peripherals/led.h"
 #include "peripherals/button.h"
-#include "peripherals/sensory.h"
 #include "peripherals/display.h"
+#include "peripherals/sensors.h"
 
 LOG_MODULE_REGISTER(app_peripherals, LOG_LEVEL_DBG);
 

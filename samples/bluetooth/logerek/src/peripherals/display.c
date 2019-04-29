@@ -40,8 +40,8 @@
 #include <stdio.h>
 
 
-#include "sensory.h"
 #include "display.h"
+#include "sensors.h"
 
 LOG_MODULE_REGISTER(app_display, LOG_LEVEL_INF);
 
@@ -156,15 +156,15 @@ static void show_sensors_data(void)
 	static s32_t old_tmp = INVALID_SENSOR_VALUE;
 	static s32_t old_hum = INVALID_SENSOR_VALUE;
 
-	s32_t external_tmp = sensory_get_temperature_external();
-	s32_t temperature = sensory_get_temperature();
-	s32_t humidity = sensory_get_humidity();
+	s32_t external_tmp = sensors_get_temperature_external();
+	s32_t temperature = sensors_get_temperature();
+	s32_t humidity = sensors_get_humidity();
 
 	u16_t len = 0U;
 	u16_t len2 = 0U;
 
 	if ((temperature == old_tmp) && (humidity == old_hum) &&
-	    (old_external_tmp != external_tmp)) {
+	    (old_external_tmp == external_tmp)) {
 		return;
 	}
 
@@ -174,41 +174,36 @@ static void show_sensors_data(void)
 
 	if (temperature != INVALID_SENSOR_VALUE) {
 		len = snprintf(str_buf, sizeof(str_buf),
-				"Dom : %3d.%1dC\n",
+				"Home: %3d.%1dC\n",
 				temperature / 10, abs(temperature % 10));
 	} else {
 		len = snprintf(str_buf, sizeof(str_buf),
-				"Dom :    N/A\n");
+				"Home:    N/A\n");
 	}
 
 	if (humidity != INVALID_SENSOR_VALUE) {
 		len2 = snprintf(str_buf + len, sizeof(str_buf) - len,
-				"Dom : %3d%% H\n",
+				"Home: %3d%% H\n",
 				humidity);
 	} else {
 		len2 = snprintf(str_buf + len, sizeof(str_buf) - len,
-				"Dom :    N/A\n");
+				"Home:    N/A\n");
 	}
 
 	if (old_external_tmp != INVALID_SENSOR_VALUE) {
 		len = snprintf(str_buf + len + len2,
 				sizeof(str_buf) - len - len2,
-				"Pole:%c%3d.%1dC\n",
+				"Out: %c%3d.%1dC\n",
 				external_tmp >= 0 ? ' ' : '-',
 				abs(external_tmp / 10),
 				abs(external_tmp % 10));
 	} else {
 		len = snprintf(str_buf + len + len2,
 				sizeof(str_buf) - len - len2,
-				"Pole:    N/A");
+				"Out:     N/A");
 	}
 
 	display_big(str_buf, false);
-}
-
-static void show_main(void)
-{
-
 }
 
 int display_init(void)
@@ -237,9 +232,6 @@ int display_screen(enum screen_ids id)
 		break;
 	case SCREEN_SENSORS:
 		show_sensors_data();
-		break;
-	case SCREEN_PYSZCZEK:
-		show_main();
 		break;
 	default:
 		LOG_ERR("fatal display error");

@@ -8,6 +8,8 @@
 #include <i2c.h>
 #include <dt-bindings/i2c/i2c.h>
 #include <nrfx_twim.h>
+#include <string.h>
+
 
 #define LOG_DOMAIN "i2c_nrfx_twim"
 #define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
@@ -136,6 +138,8 @@ static const struct i2c_driver_api i2c_nrfx_twim_driver_api = {
 	.configure = i2c_nrfx_twim_configure,
 	.transfer  = i2c_nrfx_twim_transfer,
 };
+static struct device dev_cpy;
+static nrfx_twim_config_t config_cpy;
 
 static int init_twim(struct device *dev, const nrfx_twim_config_t *config)
 {
@@ -148,9 +152,20 @@ static int init_twim(struct device *dev, const nrfx_twim_config_t *config)
 		return -EBUSY;
 	}
 
+	memcpy(&dev_cpy, dev, sizeof(dev_cpy));
+	memcpy(&config_cpy, config, sizeof(config_cpy));
+
 	return 0;
 }
+void __twim_uninit(void)
+{
+	nrfx_twim_uninit(&get_dev_config(&dev_cpy)->twim);
+}
 
+void __twim_reinit(void)
+{
+	init_twim(&dev_cpy, &config_cpy);
+}
 #define I2C_NRFX_TWIM_INVALID_FREQUENCY  ((nrf_twim_frequency_t)-1)
 #define I2C_NRFX_TWIM_FREQUENCY(bitrate)				       \
 	 (bitrate == I2C_BITRATE_STANDARD ? NRF_TWIM_FREQ_100K		       \

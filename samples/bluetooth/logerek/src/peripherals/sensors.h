@@ -5,14 +5,14 @@
  */
 #ifndef SENSORY_H__
 #define SENSORY_H__
-
+#include <zephyr.h>
 #define INVALID_SENSOR_VALUE	(s32_t)(-10000)
 
 int sensory_init(void);
-int sensory_get_temperature(void);
-int sensory_get_humidity(void);
-int sensory_get_temperature_external(void);
-void sensory_set_temperature_external(s16_t tmp);
+int sensors_get_temperature(void);
+int sensors_get_humidity(void);
+int sensors_get_temperature_external(void);
+void sensors_set_temperature_external(s16_t tmp);
 
 #endif
 

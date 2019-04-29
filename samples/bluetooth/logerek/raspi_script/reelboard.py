@@ -196,3 +196,5 @@ def bt_exchange(external_tmp):
     ret_val = {'T_reel' : temperature, 'H_reel' : humidity}
     return ret_val
 
+if __name__ == "__main__":
+    bt_exchange(226)

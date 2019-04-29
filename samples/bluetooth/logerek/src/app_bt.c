@@ -38,7 +38,7 @@
 
 #include <gatt/bas.h>
 
-#include "peripherals/sensory.h"
+#include "peripherals/sensors.h"
 
 LOG_MODULE_REGISTER(app_bt, LOG_LEVEL_DBG);
 
@@ -115,7 +115,7 @@ static ssize_t read_temperature(struct bt_conn *conn,
 				const struct bt_gatt_attr *attr,
 				void *buf, u16_t len, u16_t offset)
 {
-	s16_t value = (s16_t)sensory_get_temperature();
+	s16_t value = (s16_t)sensors_get_temperature();
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &value,
 				 sizeof(value));
@@ -125,7 +125,7 @@ static ssize_t read_humidity(struct bt_conn *conn,
 			     const struct bt_gatt_attr *attr,
 			     void *buf, u16_t len, u16_t offset)
 {
-	s16_t value = (s16_t)sensory_get_humidity();
+	s16_t value = (s16_t)sensors_get_humidity();
 	value = value > 100 ? 255 : value;
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &value,
@@ -145,7 +145,7 @@ static ssize_t write_temperature(struct bt_conn *conn,
 	}
 
 	LOG_DBG("otrzymana temperatura = %d", temperature);
-	sensory_set_temperature_external(temperature);
+	sensors_set_temperature_external(temperature);
 
 	bt_gatt_notify(conn, &logger_attrs[4], buf, sizeof(*val));
 

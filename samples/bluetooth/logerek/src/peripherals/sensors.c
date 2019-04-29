@@ -4,14 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sensors.h"
+
 #include <zephyr.h>
 #include <gpio.h>
 #include <sensor.h>
 #include <misc/printk.h>
 #include <logging/log.h>
 #include <power.h>
+#include <device.h>
 
-#include "sensory.h"
 #include "display.h"
 #include "led.h"
 #include <hal/nrf_gpio.h>
@@ -176,31 +178,38 @@ int sensory_init(void)
 	k_thread_name_set(tid, thread_name);
 	return 0;
 }
-
+extern int ssd1673_resume(const struct device *dev);
+extern int ssd1673_suspend(const struct device *dev);
 static inline void power_spim(bool status)
 {
+	struct device * epd_dev = device_get_binding(DT_SOLOMON_SSD1673FB_0_LABEL);
+	printk("%p\n", epd_dev);
 	if (status) {
 		__spim_reinit();
-		__ssd1673_reinit();
+		printk("Resume");
+//		printk(" ret: %d\n", ssd1673_resume(epd_dev));
+//		__ssd1673_reinit();
 	} else {
-		nrf_gpio_pin_write(15, 0); // reset
-		nrf_gpio_pin_write(16, 0); // dc
-		nrf_gpio_pin_write(17, 0); // cs
-		nrf_gpio_pin_write(20, 0); // MOSI
+//		printk("Suspend ret: %d\n", ssd1673_suspend(epd_dev));
+//		nrf_gpio_pin_write(15, 0); // reset
+//		nrf_gpio_pin_write(16, 0); // dc
+//		nrf_gpio_pin_write(17, 0); // cs
+//		nrf_gpio_pin_write(20, 0); // MOSI
 		__spim_uninit();
-		nrf_gpio_pin_write(15, 0); // reset
-		nrf_gpio_pin_write(16, 0); // dc
-		nrf_gpio_pin_write(17, 0); // cs
-		nrf_gpio_pin_write(20, 0); // MOSI
+//		nrf_gpio_pin_write(15, 0); // reset
+//		nrf_gpio_pin_write(16, 0); // dc
+//		nrf_gpio_pin_write(17, 0); // cs
+//		nrf_gpio_pin_write(20, 0); // MOSI
 	}
 }
 
 static inline void power_uarte(bool status)
 {
+	struct device * uart = device_get_binding(DT_UART_0_NAME);
 	if (status) {
-		__uarte_reinit();
+		device_set_power_state(uart, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
 	} else {
-		__uarte_unint();
+		device_set_power_state(uart, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
 	}
 }
 
@@ -214,12 +223,12 @@ static inline void power_i2c(bool status)
 		__twim_uninit();
 		nrf_gpio_cfg_output(27);
 		nrf_gpio_cfg_output(26);
-		nrf_gpio_pin_write(26, 0);
-		nrf_gpio_pin_write(27, 0);
-		nrf_gpio_pin_write(23, 0);
 		nrf_gpio_pin_write(22, 0);
+		nrf_gpio_pin_write(23, 0);
 		nrf_gpio_pin_write(24, 0);
 		nrf_gpio_pin_write(25, 0);
+		nrf_gpio_pin_write(26, 0);
+		nrf_gpio_pin_write(27, 0);
 	}
 }
 
@@ -227,9 +236,9 @@ static inline void power_sensors(bool state)
 {
 	/* switch on/off power supply */
 	if (state == false) {
-		power_uarte(0);
 		power_spim(0);
 		power_i2c(0);
+		power_uarte(0);
 		nrf_gpio_pin_write(32, 0);
 	} else {
 		nrf_gpio_pin_write(32, 1);
@@ -239,17 +248,17 @@ static inline void power_sensors(bool state)
 	}
 }
 
-int sensory_get_temperature(void)
+int sensors_get_temperature(void)
 {
 	return temperature;
 }
 
-int sensory_get_temperature_external(void)
+int sensors_get_temperature_external(void)
 {
 	return ext_temp_get(&ext_temperature);
 }
 
-void sensory_set_temperature_external(s16_t tmp)
+void sensors_set_temperature_external(s16_t tmp)
 {
 	if (ext_temp_add(&ext_temperature, tmp)) {
 		led_set_time(LED4, 25);
@@ -258,7 +267,7 @@ void sensory_set_temperature_external(s16_t tmp)
 	}
 }
 
-int sensory_get_humidity(void)
+int sensors_get_humidity(void)
 {
 	return humidity;
 }
@@ -276,11 +285,11 @@ static void sensors_thread_function(void *arg1, void *arg2, void *arg3)
 			get_hdc1010_val();
 		}
 		display_screen(SCREEN_SENSORS);
-		k_sleep(K_MSEC(3000));
+		k_sleep(K_MSEC(100));
 		power_sensors(false);
 		/* switch off sensors and display */
 //		k_sleep(K_SECONDS(120));
-		k_sleep(K_SECONDS(3));
+		k_sleep(K_SECONDS(7));
 		power_sensors(true);
 	}
 }

@@ -1,0 +1,38 @@
+# Kconfig - SIMPLE_LED configuration options
+
+#
+# Copyright (c) 2019, Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+#
+# SIMPLE_LED options
+#
+menuconfig SIMPLE_LED
+	bool "Simple led Drivers"
+	help
+	  Enable Simple Led Driver Configuration
+
+if SIMPLE_LED
+
+# Include these first so that any properties (e.g. defaults) below can be
+# overriden (by defining symbols in multiple locations)
+source "drivers/simple_led/Kconfig.nrfx"
+
+
+config SIMPLE_LED_INIT_PRIORITY
+	int "Init priority"
+	default 60
+	help
+	  SIMPLE_LED device driver initialization priority.
+
+
+module = SIMPLE_LED
+module-str = SIMPLE_LED
+source "subsys/logging/Kconfig.template.log_config"
+
+config SIMPLE_LED_0
+	bool "Enable SIMPLE_LED Port 0"
+
+endif # SIMPLE_LED

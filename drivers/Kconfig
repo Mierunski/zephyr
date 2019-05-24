@@ -85,6 +85,8 @@ source "drivers/modem/Kconfig"
 
 source "drivers/audio/Kconfig"
 
+source "drivers/simple_led/Kconfig"
+
 source "drivers/neural_net/Kconfig"
 
 source "drivers/hwinfo/Kconfig"

@@ -1,0 +1,14 @@
+# Kconfig -Simple Led support
+#
+# Copyright (c) 2019, Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig SIMPLE_LED_NRFX
+	bool "Simple led nrfx drivers"
+	default y
+	depends on SOC_FAMILY_NRF
+	help
+	  Enable support for imple led drivers for nRF MCU series.
+

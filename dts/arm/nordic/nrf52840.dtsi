@@ -196,6 +196,12 @@
 			label = "QDEC";
 		};
 
+		simple_led0: simpleled {
+			compatible = "nordic,simple-led";
+			status = "disabled";
+			label = "SIMPLE_LED0";
+		};
+
 		spi0: spi@40003000 {
 			compatible = "nordic,nrf-spi";
 			#address-cells = <1>;

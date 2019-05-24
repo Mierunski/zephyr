@@ -147,6 +147,11 @@
 	ch0-inverted;
 };
 
+&simple_led0 {
+	pin = <13>;
+	status = "ok";
+};
+
 &spi0 {
 	/* Cannot be used together with i2c0. */
 	/* status = "ok"; */

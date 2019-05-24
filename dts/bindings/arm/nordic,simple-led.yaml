@@ -1,0 +1,27 @@
+---
+title: Nordic Simple Led
+version: 0.1
+
+description: >
+    Binding for the Nordic Simple Led
+
+properties:
+    compatible:
+      type: string
+      category: required
+      description: compatible strings
+      constraint: "nordic,simple-led"
+      generation: define
+
+    pin:
+      type: int
+      category: required
+      description: Pin number
+      generation: define
+
+    label:
+      type: string
+      category: required
+      description: Human readable string describing the device (used by Zephyr for API name)
+      generation: define
+...

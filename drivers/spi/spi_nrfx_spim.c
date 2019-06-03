@@ -27,6 +27,7 @@ struct spi_nrfx_data {
 struct spi_nrfx_config {
 	nrfx_spim_t spim;
 	size_t      max_chunk_len;
+	const nrfx_spim_config_t config;
 };
 
 static inline struct spi_nrfx_data *get_dev_data(struct device *dev)
@@ -290,13 +291,13 @@ static void event_handler(const nrfx_spim_evt_t *p_event, void *p_context)
 	}
 }
 
-static int init_spim(struct device *dev, const nrfx_spim_config_t *config)
+static int init_spim(struct device *dev)
 {
 	/* This sets only default values of frequency, mode and bit order.
 	 * The proper ones are set in configure() when a transfer is started.
 	 */
 	nrfx_err_t result = nrfx_spim_init(&get_dev_config(dev)->spim,
-					   config,
+					   &get_dev_config(dev)->config,
 					   event_handler,
 					   dev);
 	if (result != NRFX_SUCCESS) {
@@ -309,6 +310,43 @@ static int init_spim(struct device *dev, const nrfx_spim_config_t *config)
 
 	return 0;
 }
+
+#ifdef CONFIG_DEVICE_POWER_MANAGEMENT
+static int spim_nrfx_pm_control(struct device *dev, u32_t ctrl_command,
+				void *context, device_pm_cb cb, void *arg)
+{
+	static u32_t current_state = DEVICE_PM_ACTIVE_STATE;
+	const struct spi_nrfx_config *dev_config = get_dev_config(dev);
+
+	if (ctrl_command == DEVICE_PM_SET_POWER_STATE) {
+		u32_t new_state = *((const u32_t *)context);
+
+		if (new_state != current_state) {
+			if (new_state == DEVICE_PM_ACTIVE_STATE) {
+				nrfx_spim_init(&dev_config->spim,
+					       &dev_config->config,
+					       event_handler,
+					       dev);
+			} else {
+				assert(new_state == DEVICE_PM_LOW_POWER_STATE ||
+				       new_state == DEVICE_PM_SUSPEND_STATE ||
+				       new_state == DEVICE_PM_OFF_STATE);
+				nrfx_spim_uninit(&dev_config->spim);
+			}
+			current_state = new_state;
+		}
+	} else {
+		assert(ctrl_command == DEVICE_PM_GET_POWER_STATE);
+		*((u32_t *)context) = current_state;
+	}
+
+	if (cb) {
+		cb(dev, 0, context, arg);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_DEVICE_POWER_MANAGEMENT */
 
 #if NRFX_CHECK(NRFX_SPIM_EXTENDED_ENABLED)
 #define SPI_NRFX_SPIM_EXTENDED_CONFIG(idx) \
@@ -323,18 +361,7 @@ static int init_spim(struct device *dev, const nrfx_spim_config_t *config)
 		IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_SPIM##idx),		       \
 			    DT_NORDIC_NRF_SPI_SPI_##idx##_IRQ_PRIORITY,	       \
 			    nrfx_isr, nrfx_spim_##idx##_irq_handler, 0);       \
-		const nrfx_spim_config_t config = {			       \
-			.sck_pin   = DT_NORDIC_NRF_SPI_SPI_##idx##_SCK_PIN,    \
-			.mosi_pin  = DT_NORDIC_NRF_SPI_SPI_##idx##_MOSI_PIN,   \
-			.miso_pin  = DT_NORDIC_NRF_SPI_SPI_##idx##_MISO_PIN,   \
-			.ss_pin    = NRFX_SPIM_PIN_NOT_USED,		       \
-			.orc       = CONFIG_SPI_##idx##_NRF_ORC,	       \
-			.frequency = NRF_SPIM_FREQ_4M,			       \
-			.mode      = NRF_SPIM_MODE_0,			       \
-			.bit_order = NRF_SPIM_BIT_ORDER_MSB_FIRST,	       \
-			SPI_NRFX_SPIM_EXTENDED_CONFIG(idx)		       \
-		};							       \
-		return init_spim(dev, &config);				       \
+		return init_spim(dev);					       \
 	}								       \
 	static struct spi_nrfx_data spi_##idx##_data = {		       \
 		SPI_CONTEXT_INIT_LOCK(spi_##idx##_data, ctx),		       \
@@ -344,14 +371,26 @@ static int init_spim(struct device *dev, const nrfx_spim_config_t *config)
 	static const struct spi_nrfx_config spi_##idx##z_config = {	       \
 		.spim = NRFX_SPIM_INSTANCE(idx),			       \
 		.max_chunk_len = (1 << SPIM##idx##_EASYDMA_MAXCNT_SIZE) - 1,   \
+		.config = {						       \
+			.sck_pin   = DT_NORDIC_NRF_SPI_SPI_##idx##_SCK_PIN,    \
+			.mosi_pin  = DT_NORDIC_NRF_SPI_SPI_##idx##_MOSI_PIN,   \
+			.miso_pin  = DT_NORDIC_NRF_SPI_SPI_##idx##_MISO_PIN,   \
+			.ss_pin    = NRFX_SPIM_PIN_NOT_USED,		       \
+			.orc       = CONFIG_SPI_##idx##_NRF_ORC,	       \
+			.frequency = NRF_SPIM_FREQ_4M,			       \
+			.mode      = NRF_SPIM_MODE_0,			       \
+			.bit_order = NRF_SPIM_BIT_ORDER_MSB_FIRST,	       \
+			SPI_NRFX_SPIM_EXTENDED_CONFIG(idx)		       \
+		}							       \
 	};								       \
-	DEVICE_AND_API_INIT(spi_##idx,					       \
-			    DT_NORDIC_NRF_SPI_SPI_##idx##_LABEL,	       \
-			    spi_##idx##_init,				       \
-			    &spi_##idx##_data,				       \
-			    &spi_##idx##z_config,			       \
-			    POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,	       \
-			    &spi_nrfx_driver_api)
+	DEVICE_DEFINE(spi_##idx,					       \
+		      DT_NORDIC_NRF_SPI_SPI_##idx##_LABEL,		       \
+		      spi_##idx##_init,					       \
+		      spim_nrfx_pm_control,				       \
+		      &spi_##idx##_data,				       \
+		      &spi_##idx##z_config,				       \
+		      POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,		       \
+		      &spi_nrfx_driver_api)
 
 #ifdef CONFIG_SPI_0_NRF_SPIM
 SPI_NRFX_SPIM_DEVICE(0);

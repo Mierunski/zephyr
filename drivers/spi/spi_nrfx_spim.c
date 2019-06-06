@@ -293,12 +293,11 @@ static void event_handler(const nrfx_spim_evt_t *p_event, void *p_context)
 
 static int init_spim(struct device *dev)
 {
-	const struct spi_nrfx_config *dev_config = get_dev_config(dev);
 	/* This sets only default values of frequency, mode and bit order.
 	 * The proper ones are set in configure() when a transfer is started.
 	 */
 	nrfx_err_t result = nrfx_spim_init(&get_dev_config(dev)->spim,
-					   &dev_config->config,
+					   &get_dev_config(dev)->config,
 					   event_handler,
 					   dev);
 	if (result != NRFX_SUCCESS) {
@@ -313,7 +312,6 @@ static int init_spim(struct device *dev)
 }
 
 #ifdef CONFIG_DEVICE_POWER_MANAGEMENT
-
 static int spim_nrfx_pm_control(struct device *dev, u32_t ctrl_command,
 				void *context, device_pm_cb cb, void *arg)
 {

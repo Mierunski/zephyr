@@ -60,7 +60,7 @@ def temp_val_cb(value):
     if (temperature > 1250) or (temperature < -500):
         print("Temperature Error: value: %d is out of range" % (temperature))
         return
-    print("Temperature = %d" % (temperature))
+    # print("Temperature = %d" % (temperature))
 
 def hum_val_cb(value):
     if len(value) != 2:
@@ -71,7 +71,7 @@ def hum_val_cb(value):
     if (humidity > 1000) or (humidity < 0):
         print("Humidity Error: value: %d is out of range" % (humidity))
         return
-    print("humidity = %d" % (humidity))
+    # print("humidity = %d" % (humidity))
 
 def write_handler_cb(val):
     return
@@ -126,7 +126,7 @@ def process_ess_service(service_path, chrc_paths):
     if uuid != ESS_SVC_UUID:
         return False
 
-    print('Environmental Sensing Service found: ' + service_path)
+    # print('Environmental Sensing Service found: ' + service_path)
 
     # Process the characteristics.
     for chrc_path in chrc_paths:
@@ -164,7 +164,7 @@ def bt_exchange(external_tmp):
     om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'), DBUS_OM_IFACE)
     om.connect_to_signal('InterfacesRemoved', interfaces_removed_cb)
 
-    print('Getting objects...')
+    # print('Getting objects...')
     objects = om.GetManagedObjects()
     chrcs = []
 
@@ -185,7 +185,7 @@ def bt_exchange(external_tmp):
             break
 
     if not ess_service:
-        print('No Environmental Sensing Service found')
+        # print('No Environmental Sensing Service found')
         sys.exit(1)
 
     start_client()
@@ -195,6 +195,7 @@ def bt_exchange(external_tmp):
     global humidity
     ret_val = {'T_reel' : temperature, 'H_reel' : humidity}
     return ret_val
+
 
 if __name__ == "__main__":
     bt_exchange(226)

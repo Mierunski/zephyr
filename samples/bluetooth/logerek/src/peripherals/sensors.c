@@ -39,23 +39,19 @@ struct device_info {
 
 enum periph_device {
 	DEV_IDX_HDC1010,
-//	DEV_IDX_MMA8652,
-//	DEV_IDX_APDS9960,
 	DEV_IDX_EPD,
 	DEV_IDX_NUMOF,
 };
 
 static struct device_info dev_info[] = {
 	{ NULL, DT_TI_HDC1010_0_LABEL },
-//	{ NULL, DT_NXP_MMA8652FC_0_LABEL },
-//	{ NULL, DT_AVAGO_APDS9960_0_LABEL },
 	{ NULL, DT_SOLOMON_SSD1673FB_0_LABEL }
 };
 
 static K_THREAD_STACK_DEFINE(sensors_thread_stack, SENSORY_STACK_SIZE);
 static struct k_delayed_work temperature_external_timeout;
 static k_thread_stack_t *stack = sensors_thread_stack;
-static const char *thread_name = "sensory";
+static const char *thread_name = "sensors";
 struct k_thread sensors_thread;
 
 #define TEMP_AVERAGE_SAMPLES 3
@@ -182,24 +178,11 @@ extern int ssd1673_resume(const struct device *dev);
 extern int ssd1673_suspend(const struct device *dev);
 static inline void power_spim(bool status)
 {
-	struct device * epd_dev = device_get_binding(DT_SOLOMON_SSD1673FB_0_LABEL);
-	printk("%p\n", epd_dev);
+	struct device * spi = device_get_binding(DT_SOLOMON_SSD1673FB_0_BUS_NAME);
 	if (status) {
-		__spim_reinit();
-		printk("Resume");
-//		printk(" ret: %d\n", ssd1673_resume(epd_dev));
-//		__ssd1673_reinit();
+		device_set_power_state(spi, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
 	} else {
-//		printk("Suspend ret: %d\n", ssd1673_suspend(epd_dev));
-//		nrf_gpio_pin_write(15, 0); // reset
-//		nrf_gpio_pin_write(16, 0); // dc
-//		nrf_gpio_pin_write(17, 0); // cs
-//		nrf_gpio_pin_write(20, 0); // MOSI
-		__spim_uninit();
-//		nrf_gpio_pin_write(15, 0); // reset
-//		nrf_gpio_pin_write(16, 0); // dc
-//		nrf_gpio_pin_write(17, 0); // cs
-//		nrf_gpio_pin_write(20, 0); // MOSI
+		device_set_power_state(spi, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
 	}
 }
 
@@ -215,12 +198,13 @@ static inline void power_uarte(bool status)
 
 static inline void power_i2c(bool status)
 {
+	struct device * twi = device_get_binding(DT_TI_HDC1008_0_BUS_NAME);
 	if (status) {
-		__twim_reinit();
+		device_set_power_state(twi, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
 		k_sleep(K_MSEC(2));
 		__hdc_1008_reinit();
 	} else {
-		__twim_uninit();
+		device_set_power_state(twi, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
 		nrf_gpio_cfg_output(27);
 		nrf_gpio_cfg_output(26);
 		nrf_gpio_pin_write(22, 0);
@@ -288,7 +272,6 @@ static void sensors_thread_function(void *arg1, void *arg2, void *arg3)
 		k_sleep(K_MSEC(100));
 		power_sensors(false);
 		/* switch off sensors and display */
-//		k_sleep(K_SECONDS(120));
 		k_sleep(K_SECONDS(7));
 		power_sensors(true);
 	}

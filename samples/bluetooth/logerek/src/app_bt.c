@@ -87,25 +87,21 @@ static struct bt_gatt_attr logger_attrs[] = {
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_READ,
 			       read_temperature, NULL, NULL),
-	BT_GATT_CUD("Temperatura", BT_GATT_PERM_READ),
+	BT_GATT_CUD("Temperature", BT_GATT_PERM_READ),
 
 	/* Internal humidity */
 	BT_GATT_CHARACTERISTIC(BT_UUID_HUMIDITY,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_READ,
 			       read_humidity, NULL, NULL),
-	BT_GATT_CUD("Wilgotność", BT_GATT_PERM_READ),
+	BT_GATT_CUD("Humidity", BT_GATT_PERM_READ),
 
-	/* External temperature *
-	BT_GATT_CHARACTERISTIC(BT_UUID_HEAT_INDEX,
-			       BT_GATT_CHRC_WRITE | BT_GATT_CHRC_INDICATE,
-			       BT_GATT_PERM_WRITE_AUTHEN,
-			       NULL, write_temperature, NULL),*/
+	/* External temperature */
 	BT_GATT_CHARACTERISTIC(BT_UUID_HEAT_INDEX,
 			       BT_GATT_CHRC_WRITE | BT_GATT_CHRC_INDICATE,
 			       BT_GATT_PERM_WRITE,
 			       NULL, write_temperature, NULL),
-	BT_GATT_CUD("Temperatura zadana", BT_GATT_PERM_READ),
+	BT_GATT_CUD("External Temperature", BT_GATT_PERM_READ),
 };
 
 static struct bt_gatt_service logger_svc = BT_GATT_SERVICE(logger_attrs);
@@ -144,7 +140,7 @@ static ssize_t write_temperature(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
 	}
 
-	LOG_DBG("otrzymana temperatura = %d", temperature);
+	LOG_DBG("Received temperature = %d", temperature);
 	sensors_set_temperature_external(temperature);
 
 	bt_gatt_notify(conn, &logger_attrs[4], buf, sizeof(*val));
